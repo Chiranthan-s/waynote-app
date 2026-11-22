@@ -1,0 +1,8 @@
+{
+  "name": "Waynote",
+  "description": "A mobile-optimized Notion-inspired journal and task management workspace.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
