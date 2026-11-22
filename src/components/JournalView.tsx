@@ -82,10 +82,14 @@ export function JournalView({
       {entries.length === 0 ? (
         <div className="py-12 px-4 text-center rounded-2xl border border-dashed border-[#E6E5E1] dark:border-[#2E2E2E]">
           <p className="text-sm font-medium text-[#37352F] dark:text-[#E6E5E1]">
-            No journal entries for this mood filter
+            {Object.keys(journalDays).length === 0
+              ? 'No journal entries yet'
+              : 'No journal entries for this mood filter'}
           </p>
           <p className="mt-1 text-xs text-[#787774] dark:text-[#9B9A97]">
-            Choose All above or pick a date to start writing.
+            {Object.keys(journalDays).length === 0
+              ? 'Pick a date above or open Today to start writing.'
+              : 'Choose All above or pick a date to start writing.'}
           </p>
         </div>
       ) : (

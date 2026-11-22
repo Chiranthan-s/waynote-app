@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { HardDrive, Lock, ShieldCheck, Share2, WifiOff, X } from 'lucide-react';
+import { HardDrive, Lock, RotateCcw, ShieldCheck, Share2, WifiOff, X } from 'lucide-react';
 
 interface PrivacyPolicyModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onRequestReset?: () => void;
   stats: {
     notesCount: number;
     tasksCount: number;
@@ -16,6 +17,7 @@ interface PrivacyPolicyModalProps {
 export function PrivacyPolicyModal({
   isOpen,
   onClose,
+  onRequestReset,
   stats,
 }: PrivacyPolicyModalProps) {
   useEffect(() => {
@@ -147,7 +149,19 @@ export function PrivacyPolicyModal({
           </div>
         </div>
 
-        <div className="px-5 py-3.5 border-t border-[#EFEFED] dark:border-[#2C2C2C] flex items-center justify-end pb-safe shrink-0">
+        <div className="px-5 py-3.5 border-t border-[#EFEFED] dark:border-[#2C2C2C] flex flex-wrap items-center justify-between gap-2 pb-safe shrink-0">
+          {onRequestReset ? (
+            <button
+              type="button"
+              onClick={onRequestReset}
+              className="inline-flex items-center gap-1.5 px-3 min-h-[42px] rounded-xl border border-red-500/25 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors whitespace-nowrap"
+            >
+              <RotateCcw className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+              <span>Reset / Clear Sample Data</span>
+            </button>
+          ) : (
+            <span />
+          )}
           <button
             type="button"
             onClick={onClose}

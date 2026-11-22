@@ -3,9 +3,12 @@ import {
   Calendar,
   CalendarDays,
   CheckSquare,
+  Database,
   FolderOpen,
+  HelpCircle,
   Moon,
   Plus,
+  RotateCcw,
   Search,
   ShieldCheck,
   StickyNote,
@@ -30,7 +33,10 @@ interface SidebarProps {
   onOpenSearch: () => void;
   onOpenQuickAddPage: () => void;
   onToggleDarkMode: () => void;
+  onOpenBackupModal: () => void;
+  onOpenResetModal: () => void;
   onOpenPrivacy: () => void;
+  onOpenAboutModal: () => void;
 }
 
 export function Sidebar({
@@ -47,7 +53,10 @@ export function Sidebar({
   onOpenSearch,
   onOpenQuickAddPage,
   onToggleDarkMode,
+  onOpenBackupModal,
+  onOpenResetModal,
   onOpenPrivacy,
+  onOpenAboutModal,
 }: SidebarProps) {
   const navItems: {
     id: ActiveTab;
@@ -231,13 +240,52 @@ export function Sidebar({
           type="button"
           onClick={() => {
             onCloseMobile();
+            onOpenBackupModal();
+          }}
+          className="w-full flex items-center justify-between px-3 min-h-[44px] rounded-xl text-xs font-medium text-[#5F5E5B] dark:text-[#A4A39E] hover:bg-[#EFEFED] dark:hover:bg-[#282828] transition-colors"
+        >
+          <span className="flex items-center gap-2.5">
+            <Database className="w-4 h-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">Backup &amp; Restore</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onCloseMobile();
+            onOpenResetModal();
+          }}
+          className="w-full flex items-center justify-between px-3 min-h-[44px] rounded-xl text-xs font-medium text-[#787774] dark:text-[#8E8D89] hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/8 transition-colors"
+        >
+          <span className="flex items-center gap-2.5">
+            <RotateCcw className="w-4 h-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">Reset / Clear Sample Data</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onCloseMobile();
             onOpenPrivacy();
           }}
           className="w-full flex items-center justify-between px-3 min-h-[44px] rounded-xl text-xs font-medium text-[#787774] dark:text-[#8E8D89] hover:text-[#37352F] dark:hover:text-[#E6E5E1] hover:bg-[#EFEFED] dark:hover:bg-[#282828] transition-colors"
         >
           <span className="flex items-center gap-2.5">
-            <ShieldCheck className="w-4 h-4" aria-hidden="true" />
+            <ShieldCheck className="w-4 h-4 shrink-0" aria-hidden="true" />
             <span>Privacy Policy</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onCloseMobile();
+            onOpenAboutModal();
+          }}
+          className="w-full flex items-center justify-between px-3 min-h-[44px] rounded-xl text-xs font-medium text-[#787774] dark:text-[#8E8D89] hover:text-[#37352F] dark:hover:text-[#E6E5E1] hover:bg-[#EFEFED] dark:hover:bg-[#282828] transition-colors"
+        >
+          <span className="flex items-center gap-2.5">
+            <HelpCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+            <span>About &amp; Support</span>
           </span>
         </button>
       </div>

@@ -32,6 +32,10 @@ import {
   TODAY_ISO,
 } from './data/seedData';
 import { formatShortDate, generateId } from './utils/dateUtils';
+import {
+  downloadWaynoteBackup,
+  parseAndValidateWaynoteBackup,
+} from './utils/backup';
 import { Sidebar } from './components/Sidebar';
 import { TodayView } from './components/TodayView';
 import { CalendarView } from './components/CalendarView';
@@ -45,6 +49,9 @@ import { EventModalSheet } from './components/EventModalSheet';
 import { QuickAddModal } from './components/QuickAddModal';
 import { SearchModal } from './components/SearchModal';
 import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
+import { AboutSupportModal } from './components/AboutSupportModal';
+import { ResetWorkspaceModal } from './components/ResetWorkspaceModal';
+import { BackupRestoreModal } from './components/BackupRestoreModal';
 import { PrintableNoteSheet } from './components/PrintableNoteSheet';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { PWAInstallButton } from './components/PWAInstallButton';
@@ -68,6 +75,7 @@ const STORAGE_KEYS = {
   pages: 'waynote_pages_v1',
   theme: 'waynote_theme_v1',
   settings: 'waynote_settings_v1',
+  sampleCleared: 'waynote_sample_cleared_v1',
 };
 
 const DEFAULT_SETTINGS: WorkspaceSettings = {
@@ -91,21 +99,35 @@ function loadStored<T>(key: string, fallback: T): T {
   }
 }
 
+function isSampleDataCleared(): boolean {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.sampleCleared) === 'true';
+  } catch {
+    return false;
+  }
+}
+
 export default function App() {
   const [events, setEvents] = useState<CalendarEvent[]>(() =>
-    loadStored(STORAGE_KEYS.events, INITIAL_EVENTS)
+    loadStored(
+      STORAGE_KEYS.events,
+      isSampleDataCleared() ? [] : INITIAL_EVENTS
+    )
   );
   const [tasks, setTasks] = useState<TaskItem[]>(() =>
-    loadStored(STORAGE_KEYS.tasks, INITIAL_TASKS)
+    loadStored(STORAGE_KEYS.tasks, isSampleDataCleared() ? [] : INITIAL_TASKS)
   );
   const [notes, setNotes] = useState<NoteItem[]>(() =>
-    loadStored(STORAGE_KEYS.notes, INITIAL_NOTES)
+    loadStored(STORAGE_KEYS.notes, isSampleDataCleared() ? [] : INITIAL_NOTES)
   );
   const [journalDays, setJournalDays] = useState<Record<string, JournalDay>>(() =>
-    loadStored(STORAGE_KEYS.journal, INITIAL_JOURNAL_DAYS)
+    loadStored(
+      STORAGE_KEYS.journal,
+      isSampleDataCleared() ? {} : INITIAL_JOURNAL_DAYS
+    )
   );
   const [pages, setPages] = useState<WorkspacePage[]>(() =>
-    loadStored(STORAGE_KEYS.pages, INITIAL_PAGES)
+    loadStored(STORAGE_KEYS.pages, isSampleDataCleared() ? [] : INITIAL_PAGES)
   );
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     try {
@@ -162,6 +184,9 @@ export default function App() {
   const [privacyOpen, setPrivacyOpen] = useState<boolean>(
     () => typeof window !== 'undefined' && window.location.pathname === '/privacy'
   );
+  const [aboutModalOpen, setAboutModalOpen] = useState(false);
+  const [backupModalOpen, setBackupModalOpen] = useState(false);
+  const [resetModalOpen, setResetModalOpen] = useState(false);
   const [printableNote, setPrintableNote] = useState<NoteItem | null>(null);
   const [quickAddState, setQuickAddState] = useState<{
     open: boolean;
@@ -170,7 +195,7 @@ export default function App() {
 
   const [undoToast, setUndoToast] = useState<{
     label: string;
-    restore: () => void;
+    restore?: () => void;
   } | null>(null);
 
   // Sync theme to documentElement & theme-color meta tag
@@ -226,6 +251,97 @@ export default function App() {
         window.print();
       }, 40);
     });
+  };
+
+  const handleStartFresh = () => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.sampleCleared, 'true');
+      localStorage.setItem(STORAGE_KEYS.events, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.tasks, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.journal, JSON.stringify({}));
+      localStorage.setItem(STORAGE_KEYS.pages, JSON.stringify([]));
+    } catch {
+      // ignore storage quota errors
+    }
+
+    setEvents([]);
+    setTasks([]);
+    setNotes([]);
+    setJournalDays({});
+    setPages([]);
+    setInspectedTaskId(null);
+    setPrintableNote(null);
+    setUndoToast(null);
+    setSettings((s) => ({
+      ...s,
+      selectedPageId: null,
+      selectedNoteId: null,
+    }));
+    setResetModalOpen(false);
+    if (privacyOpen) closePrivacyModal();
+  };
+
+  const handleExportBackup = () => {
+    downloadWaynoteBackup({
+      tasks: loadStored(STORAGE_KEYS.tasks, tasks),
+      events: loadStored(STORAGE_KEYS.events, events),
+      notes: loadStored(STORAGE_KEYS.notes, notes),
+      pages: loadStored(STORAGE_KEYS.pages, pages),
+      journalDays: loadStored(STORAGE_KEYS.journal, journalDays),
+    });
+  };
+
+  const handleImportBackupFile = async (
+    file: File
+  ): Promise<string | null> => {
+    let rawText = '';
+    try {
+      rawText = await file.text();
+    } catch {
+      return 'Unable to read the selected file.';
+    }
+
+    const result = parseAndValidateWaynoteBackup(rawText);
+    if (!result.ok) {
+      return result.error;
+    }
+
+    const restored = result.data;
+    try {
+      localStorage.setItem(STORAGE_KEYS.sampleCleared, 'true');
+      localStorage.setItem(STORAGE_KEYS.tasks, JSON.stringify(restored.tasks));
+      localStorage.setItem(
+        STORAGE_KEYS.events,
+        JSON.stringify(restored.events)
+      );
+      localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify(restored.notes));
+      localStorage.setItem(STORAGE_KEYS.pages, JSON.stringify(restored.pages));
+      localStorage.setItem(
+        STORAGE_KEYS.journal,
+        JSON.stringify(restored.journalDays)
+      );
+    } catch {
+      return 'Failed to save restored backup to localStorage.';
+    }
+
+    setTasks(restored.tasks);
+    setEvents(restored.events);
+    setNotes(restored.notes);
+    setPages(restored.pages);
+    setJournalDays(restored.journalDays);
+    setInspectedTaskId(null);
+    setPrintableNote(null);
+    setSettings((s) => ({
+      ...s,
+      selectedPageId: null,
+      selectedNoteId: restored.notes[0]?.id || null,
+    }));
+    setBackupModalOpen(false);
+    setUndoToast({
+      label: `Backup restored (${restored.tasks.length} tasks, ${restored.events.length} events, ${restored.notes.length} notes)`,
+    });
+    return null;
   };
 
   // Persist workspace state
@@ -574,7 +690,10 @@ export default function App() {
           onOpenSearch={() => setSearchOpen(true)}
           onOpenQuickAddPage={() => setQuickAddState({ open: true, mode: 'page' })}
           onToggleDarkMode={() => setDarkMode((d) => !d)}
+          onOpenBackupModal={() => setBackupModalOpen(true)}
+          onOpenResetModal={() => setResetModalOpen(true)}
           onOpenPrivacy={openPrivacyModal}
+          onOpenAboutModal={() => setAboutModalOpen(true)}
         />
 
       {/* Main Content Area */}
@@ -949,6 +1068,7 @@ export default function App() {
       <PrivacyPolicyModal
         isOpen={privacyOpen}
         onClose={closePrivacyModal}
+        onRequestReset={() => setResetModalOpen(true)}
         stats={{
           notesCount: notes.length,
           tasksCount: tasks.length,
@@ -958,20 +1078,54 @@ export default function App() {
         }}
       />
 
+      {/* About & Support Modal */}
+      <AboutSupportModal
+        isOpen={aboutModalOpen}
+        onClose={() => setAboutModalOpen(false)}
+      />
+
+      {/* Backup & Restore Modal */}
+      <BackupRestoreModal
+        isOpen={backupModalOpen}
+        onClose={() => setBackupModalOpen(false)}
+        onExport={handleExportBackup}
+        onImportFile={handleImportBackupFile}
+        stats={{
+          tasksCount: tasks.length,
+          eventsCount: events.length,
+          notesCount: notes.length,
+          pagesCount: pages.length,
+          journalCount: Object.keys(journalDays).length,
+        }}
+      />
+
+      {/* Reset / Clear Sample Data Confirmation Modal */}
+      <ResetWorkspaceModal
+        isOpen={resetModalOpen}
+        onCancel={() => setResetModalOpen(false)}
+        onConfirm={handleStartFresh}
+      />
+
       {/* Offline Connectivity Banner */}
       <OfflineIndicator />
 
-      {/* Undo Toast */}
+      {/* Undo / Status Toast */}
       {undoToast && (
-        <div className="fixed bottom-18 lg:bottom-6 left-4 right-4 sm:left-auto sm:right-6 sm:w-auto z-50 flex items-center justify-between gap-4 px-4 py-2.5 rounded-xl bg-[#37352F] dark:bg-[#F0EFEA] text-white dark:text-[#191919] shadow-xl">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-18 lg:bottom-6 left-4 right-4 sm:left-auto sm:right-6 sm:w-auto z-50 flex items-center justify-between gap-4 px-4 py-2.5 rounded-xl bg-[#37352F] dark:bg-[#F0EFEA] text-white dark:text-[#191919] shadow-xl"
+        >
           <span className="text-xs font-medium truncate">{undoToast.label}</span>
-          <button
-            type="button"
-            onClick={undoToast.restore}
-            className="text-xs font-semibold text-[#60A5FA] dark:text-[#2383E2] px-2 min-h-[36px] whitespace-nowrap shrink-0"
-          >
-            Undo
-          </button>
+          {undoToast.restore && (
+            <button
+              type="button"
+              onClick={undoToast.restore}
+              className="text-xs font-semibold text-[#60A5FA] dark:text-[#2383E2] px-2 min-h-[36px] whitespace-nowrap shrink-0"
+            >
+              Undo
+            </button>
+          )}
         </div>
       )}
       </div>
