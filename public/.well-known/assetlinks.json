@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "dev.workers.chiranthans2007.waynote_app.twa",
+        "sha256_cert_fingerprints": ["15:CB:26:E4:FC:16:D5:9F:F8:DE:CB:27:B0:04:C0:0B:EE:F2:A4:E1:66:A7:93:75:3B:28:2C:9B:F9:08:80:7D"]
+      }
+    }]
