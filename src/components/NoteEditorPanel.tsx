@@ -14,8 +14,8 @@ import {
   X,
 } from 'lucide-react';
 import { NoteItem, NoteTint, TaskPriority } from '../types/workspace';
-import { NOTE_NOTEBOOKS, NOTE_TINTS, TODAY_ISO } from '../data/seedData';
-import { generateId } from '../utils/dateUtils';
+import { NOTE_NOTEBOOKS, NOTE_TINTS } from '../data/seedData';
+import { generateId, getTodayIso } from '../utils/dateUtils';
 import { downloadNoteAsTxt, getWhatsAppShareUrl } from '../utils/noteExport';
 
 interface NoteEditorPanelProps {
@@ -148,7 +148,7 @@ export function NoteEditorPanel({
   const handlePromoteNoteToTask = () => {
     onPromoteToTask({
       title: note.title.trim() || 'Follow up on note',
-      dueDate: TODAY_ISO,
+      dueDate: getTodayIso(),
       priority: 'medium',
       category: 'Daily Focus',
       notes: note.body.slice(0, 280),
@@ -466,7 +466,7 @@ export function NoteEditorPanel({
                     onClick={() =>
                       onPromoteToTask({
                         title: item.text,
-                        dueDate: TODAY_ISO,
+                        dueDate: getTodayIso(),
                         priority: 'medium',
                         category: 'Daily Focus',
                         notes: `From note: ${note.title || 'Untitled'}`,

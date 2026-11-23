@@ -4,6 +4,7 @@ import {
   CalendarDays,
   CheckSquare,
   Database,
+  Flame,
   FolderOpen,
   HelpCircle,
   Moon,
@@ -25,6 +26,9 @@ interface SidebarProps {
   pages: WorkspacePage[];
   activeTaskCount: number;
   activeNoteCount: number;
+  habitsDoneToday: number;
+  habitsScheduledToday: number;
+  focusTimerRunning?: boolean;
   darkMode: boolean;
   mobileOpen: boolean;
   onCloseMobile: () => void;
@@ -45,6 +49,9 @@ export function Sidebar({
   pages,
   activeTaskCount,
   activeNoteCount,
+  habitsDoneToday,
+  habitsScheduledToday,
+  focusTimerRunning = false,
   darkMode,
   mobileOpen,
   onCloseMobile,
@@ -90,6 +97,12 @@ export function Sidebar({
       id: 'journal',
       label: 'Journey Log',
       icon: <BookMarked className="w-4 h-4" />,
+    },
+    {
+      id: 'focus',
+      label: focusTimerRunning ? 'Focus (Running)' : 'Focus & Habits',
+      icon: <Flame className="w-4 h-4" />,
+      count: habitsScheduledToday > 0 ? habitsDoneToday : undefined,
     },
     {
       id: 'pages',

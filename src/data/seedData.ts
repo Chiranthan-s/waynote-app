@@ -2,6 +2,8 @@ import {
   CalendarEvent,
   EventCategory,
   EventColor,
+  FocusDayLog,
+  HabitItem,
   JournalDay,
   NoteItem,
   NoteTint,
@@ -9,7 +11,18 @@ import {
   WorkspacePage,
 } from '../types/workspace';
 
-export const TODAY_ISO = '2026-11-21';
+import { getTodayIso, shiftDateIso } from '../utils/dateUtils';
+
+const TODAY = getTodayIso();
+const D_M4 = shiftDateIso(TODAY, -4);
+const D_M3 = shiftDateIso(TODAY, -3);
+const D_M2 = shiftDateIso(TODAY, -2);
+const D_M1 = shiftDateIso(TODAY, -1);
+const D_P1 = shiftDateIso(TODAY, 1);
+const D_P2 = shiftDateIso(TODAY, 2);
+const D_P3 = shiftDateIso(TODAY, 3);
+const D_P6 = shiftDateIso(TODAY, 6);
+const D_M6 = shiftDateIso(TODAY, -6);
 
 export const COVER_PRESETS: { label: string; url: string }[] = [
   {
@@ -40,7 +53,7 @@ export const INITIAL_TASKS: TaskItem[] = [
     id: 'task-1',
     title: 'Finalize mobile thumb-zone navigation flow',
     completed: true,
-    dueDate: '2026-11-21',
+    dueDate: TODAY,
     priority: 'high',
     category: 'Product Craft',
     notes: 'Verify 44px minimum touch targets across all bottom bar and block controls.',
@@ -52,12 +65,12 @@ export const INITIAL_TASKS: TaskItem[] = [
   },
   {
     id: 'task-2',
-    title: 'Write Saturday morning journal reflection',
+    title: 'Write morning journal reflection',
     completed: false,
-    dueDate: '2026-11-21',
+    dueDate: TODAY,
     priority: 'medium',
     category: 'Daily Focus',
-    notes: 'Capture three quiet moments from this week and set one intention for Sunday.',
+    notes: 'Capture three quiet moments from this week and set one intention for tomorrow.',
     subtasks: [],
     createdAt: '2026-11-21T08:00:00Z',
   },
@@ -65,10 +78,10 @@ export const INITIAL_TASKS: TaskItem[] = [
     id: 'task-3',
     title: 'Pick up fresh roasted espresso beans',
     completed: false,
-    dueDate: '2026-11-21',
+    dueDate: TODAY,
     priority: 'low',
     category: 'Personal',
-    notes: 'Roastery on 4th Street closes at 4:00 PM on Saturdays.',
+    notes: 'Roastery on 4th Street closes at 4:00 PM.',
     subtasks: [
       { id: 'st-3', title: 'Bring reusable canister', completed: false },
     ],
@@ -78,7 +91,7 @@ export const INITIAL_TASKS: TaskItem[] = [
     id: 'task-4',
     title: 'Read Chapter 4 of The Timeless Way of Building',
     completed: false,
-    dueDate: '2026-11-21',
+    dueDate: TODAY,
     priority: 'medium',
     category: 'Reading',
     notes: 'Add key excerpts to Q4 Reading & Notes page.',
@@ -89,7 +102,7 @@ export const INITIAL_TASKS: TaskItem[] = [
     id: 'task-5',
     title: 'Organize Kyoto train & ryokan confirmations',
     completed: false,
-    dueDate: '2026-11-22',
+    dueDate: D_P1,
     priority: 'high',
     category: 'Personal',
     notes: 'Confirm Shinkansen seat reservation numbers and check-in window.',
@@ -103,7 +116,7 @@ export const INITIAL_TASKS: TaskItem[] = [
     id: 'task-6',
     title: 'Clean up weekly inbox and archive old drafts',
     completed: false,
-    dueDate: '2026-11-22',
+    dueDate: D_P1,
     priority: 'low',
     category: 'Daily Focus',
     notes: 'Keep only active projects in the sidebar tree.',
@@ -114,7 +127,7 @@ export const INITIAL_TASKS: TaskItem[] = [
     id: 'task-7',
     title: 'Sketch block-editor keyboard shortcuts spec',
     completed: true,
-    dueDate: '2026-11-20',
+    dueDate: D_M1,
     priority: 'medium',
     category: 'Product Craft',
     notes: 'Documented slash menu triggers and Enter-to-continue behavior.',
@@ -124,10 +137,10 @@ export const INITIAL_TASKS: TaskItem[] = [
 ];
 
 export const INITIAL_JOURNAL_DAYS: Record<string, JournalDay> = {
-  '2026-11-21': {
-    date: '2026-11-21',
+  [TODAY]: {
+    date: TODAY,
     tone: 'Grounded',
-    focusLine: 'Slow Saturday — finish deep reading before noon, keep evening offline.',
+    focusLine: 'Finish deep reading before noon, keep evening offline.',
     blocks: [
       {
         id: 'jb-21-1',
@@ -170,8 +183,8 @@ export const INITIAL_JOURNAL_DAYS: Record<string, JournalDay> = {
       },
     ],
   },
-  '2026-11-20': {
-    date: '2026-11-20',
+  [D_M1]: {
+    date: D_M1,
     tone: 'Focused',
     focusLine: 'Close out sprint reviews cleanly before the weekend.',
     blocks: [
@@ -184,7 +197,7 @@ export const INITIAL_JOURNAL_DAYS: Record<string, JournalDay> = {
         id: 'jb-20-2',
         type: 'text',
         content:
-          'Shipped the typography audit before 3 PM. Having fewer concurrent tasks made Friday feel noticeably calmer.',
+          'Shipped the typography audit before 3 PM. Having fewer concurrent tasks made the day feel noticeably calmer.',
       },
       {
         id: 'jb-20-3',
@@ -193,8 +206,8 @@ export const INITIAL_JOURNAL_DAYS: Record<string, JournalDay> = {
       },
     ],
   },
-  '2026-11-19': {
-    date: '2026-11-19',
+  [D_M2]: {
+    date: D_M2,
     tone: 'Reflective',
     focusLine: 'Protect two uninterrupted hours for writing.',
     blocks: [
@@ -230,7 +243,7 @@ export const INITIAL_PAGES: WorkspacePage[] = [
     icon: 'Feather',
     coverUrl: COVER_PRESETS[0].url,
     fontStyle: 'serif',
-    updatedAt: '2026-11-21',
+    updatedAt: TODAY,
     summary: 'Unfiltered morning thoughts, recurring prompts, and quiet observations.',
     blocks: [
       {
@@ -274,7 +287,7 @@ export const INITIAL_PAGES: WorkspacePage[] = [
     icon: 'BookOpen',
     coverUrl: COVER_PRESETS[1].url,
     fontStyle: 'sans',
-    updatedAt: '2026-11-20',
+    updatedAt: D_M1,
     summary: 'Books on architecture, craft, and calm systems with chapter takeaways.',
     blocks: [
       {
@@ -312,7 +325,7 @@ export const INITIAL_PAGES: WorkspacePage[] = [
     icon: 'Compass',
     coverUrl: COVER_PRESETS[2].url,
     fontStyle: 'sans',
-    updatedAt: '2026-11-18',
+    updatedAt: D_M2,
     summary: 'Neighborhood walks, tea houses, transit notes, and packing checklist.',
     blocks: [
       {
@@ -354,7 +367,7 @@ export const INITIAL_PAGES: WorkspacePage[] = [
     title: 'Weekly Review Ritual',
     icon: 'Layers',
     fontStyle: 'sans',
-    updatedAt: '2026-11-17',
+    updatedAt: D_M2,
     summary: 'Sunday evening reset checklist to close loops and preview next week.',
     blocks: [
       {
@@ -599,7 +612,7 @@ export const INITIAL_EVENTS: CalendarEvent[] = [
   {
     id: 'evt-1',
     title: 'Deep Reading Block: Architecture & Craft',
-    date: '2026-11-21',
+    date: TODAY,
     allDay: false,
     startTime: '09:30',
     endTime: '11:00',
@@ -614,7 +627,7 @@ export const INITIAL_EVENTS: CalendarEvent[] = [
   {
     id: 'evt-2',
     title: 'Coffee Walk & Market Errands',
-    date: '2026-11-21',
+    date: TODAY,
     allDay: false,
     startTime: '14:00',
     endTime: '15:15',
@@ -629,14 +642,14 @@ export const INITIAL_EVENTS: CalendarEvent[] = [
   {
     id: 'evt-3',
     title: 'Weekly Review & Sunday Reset',
-    date: '2026-11-15',
+    date: D_M6,
     allDay: false,
     startTime: '17:00',
     endTime: '17:45',
     category: 'Milestone',
     color: 'amber',
     location: 'Desk',
-    description: 'Close weekly loops, clear completed tasks, and pick top 3 Monday priorities.',
+    description: 'Close weekly loops, clear completed tasks, and pick top 3 priorities.',
     repeat: 'weekly',
     reminder: '30m',
     createdAt: '2026-11-14T12:00:00Z',
@@ -644,7 +657,7 @@ export const INITIAL_EVENTS: CalendarEvent[] = [
   {
     id: 'evt-4',
     title: 'Design Systems Sync',
-    date: '2026-11-23',
+    date: D_P2,
     allDay: false,
     startTime: '10:00',
     endTime: '10:45',
@@ -659,7 +672,7 @@ export const INITIAL_EVENTS: CalendarEvent[] = [
   {
     id: 'evt-5',
     title: 'Morning Strength & Mobility',
-    date: '2026-11-24',
+    date: D_P3,
     allDay: false,
     startTime: '07:30',
     endTime: '08:15',
@@ -674,7 +687,7 @@ export const INITIAL_EVENTS: CalendarEvent[] = [
   {
     id: 'evt-6',
     title: 'Kyoto Rail & Ryokan Check-in Window',
-    date: '2026-11-27',
+    date: D_P6,
     allDay: true,
     startTime: '09:00',
     endTime: '18:00',
@@ -687,3 +700,45 @@ export const INITIAL_EVENTS: CalendarEvent[] = [
     createdAt: '2026-11-18T14:30:00Z',
   },
 ];
+
+export const INITIAL_HABITS: HabitItem[] = [
+  {
+    id: 'hab-1',
+    title: '20-min morning walk without phone',
+    cadence: 'daily',
+    color: 'emerald',
+    completedDates: [D_M6, D_M4, D_M3, D_M2, D_M1],
+    createdAt: `${D_M6}T07:00:00Z`,
+  },
+  {
+    id: 'hab-2',
+    title: 'Read 15 pages before checking messages',
+    cadence: 'daily',
+    color: 'blue',
+    completedDates: [D_M3, D_M2, D_M1, TODAY],
+    createdAt: `${D_M6}T08:00:00Z`,
+  },
+  {
+    id: 'hab-3',
+    title: 'Deep focus work block (25+ min)',
+    cadence: 'weekdays',
+    color: 'violet',
+    completedDates: [D_M4, D_M3, D_M1],
+    createdAt: `${D_M6}T09:00:00Z`,
+  },
+  {
+    id: 'hab-4',
+    title: 'Evening 3-line reflection & shutdown',
+    cadence: 'daily',
+    color: 'amber',
+    completedDates: [D_M2, D_M1],
+    createdAt: `${D_M6}T20:00:00Z`,
+  },
+];
+
+export const INITIAL_FOCUS_LOGS: Record<string, FocusDayLog> = {
+  [D_M2]: { sessions: 2, minutes: 50 },
+  [D_M1]: { sessions: 3, minutes: 75 },
+  [TODAY]: { sessions: 1, minutes: 25 },
+};
+

@@ -22,13 +22,13 @@ import {
   EVENT_CATEGORIES,
   EVENT_COLORS,
   TASK_CATEGORIES,
-  TODAY_ISO,
 } from '../data/seedData';
 import {
   formatEventTimeRange,
   formatReadableDate,
   getEventsForDate,
   getMonthGridDays,
+  getTodayIso,
   getWeekDays,
   parseISODate,
   shiftDateIso,
@@ -38,6 +38,7 @@ import { TaskRow } from './TaskRow';
 
 interface CalendarViewProps {
   selectedDate: string;
+  todayIso?: string;
   onSelectDate: (iso: string) => void;
   viewMode: 'month' | 'week';
   onChangeViewMode: (mode: 'month' | 'week') => void;
@@ -62,6 +63,7 @@ interface CalendarViewProps {
 
 export function CalendarView({
   selectedDate,
+  todayIso = getTodayIso(),
   onSelectDate,
   viewMode,
   onChangeViewMode,
@@ -127,14 +129,15 @@ export function CalendarView({
       getMonthGridDays(
         displayMonth.year,
         displayMonth.monthIndex,
-        weekStartsOnMonday
+        weekStartsOnMonday,
+        todayIso
       ),
-    [displayMonth.year, displayMonth.monthIndex, weekStartsOnMonday]
+    [displayMonth.year, displayMonth.monthIndex, weekStartsOnMonday, todayIso]
   );
 
   const weekDays = useMemo(
-    () => getWeekDays(selectedDate, weekStartsOnMonday),
-    [selectedDate, weekStartsOnMonday]
+    () => getWeekDays(selectedDate, weekStartsOnMonday, todayIso),
+    [selectedDate, weekStartsOnMonday, todayIso]
   );
 
   const weekdayHeaders = weekStartsOnMonday
@@ -193,12 +196,13 @@ export function CalendarView({
   };
 
   const handleJumpToday = () => {
-    const todayDt = parseISODate(TODAY_ISO);
+    const liveToday = getTodayIso();
+    const todayDt = parseISODate(liveToday);
     setDisplayMonth({
       year: todayDt.getFullYear(),
       monthIndex: todayDt.getMonth(),
     });
-    onSelectDate(TODAY_ISO);
+    onSelectDate(liveToday);
   };
 
   const handleInlineAddTask = (e: React.FormEvent) => {
@@ -399,7 +403,7 @@ export function CalendarView({
                     key={cell.iso}
                     type="button"
                     onClick={() => onSelectDate(cell.iso)}
-                    aria-label={`${formatReadableDate(cell.iso)}${
+                    aria-label={`${formatReadableDate(cell.iso, todayIso)}${
                       cellEvents.length > 0
                         ? `, ${cellEvents.length} events`
                         : ''
@@ -529,7 +533,7 @@ export function CalendarView({
             <div className="flex items-start justify-between gap-3 pb-3 border-b border-[#EFEFED] dark:border-[#2C2C2C]">
               <div className="min-w-0">
                 <div className="text-xs font-medium text-[#787774] dark:text-[#9B9A97] tabular-nums">
-                  {selectedDate === TODAY_ISO
+                  {selectedDate === todayIso
                     ? 'Today'
                     : selectedDt.toLocaleDateString('en-US', {
                         weekday: 'long',

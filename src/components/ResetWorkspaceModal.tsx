@@ -68,9 +68,9 @@ export function ResetWorkspaceModal({
           </p>
           <p className="text-xs leading-relaxed text-[#787774] dark:text-[#9B9A97]">
             This removes all pre-loaded demo tasks, schedule events, notes,
-            journal entries, and sample pages from local storage on this device
-            and keeps your workspace empty on reload. Your theme preference is
-            preserved.
+            habits, focus history, journal entries, and sample pages from local
+            storage on this device and keeps your workspace empty on reload. Your
+            theme preference is preserved.
           </p>
         </div>
 

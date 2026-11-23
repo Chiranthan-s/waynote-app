@@ -6,8 +6,8 @@ import {
   NOTE_NOTEBOOKS,
   NOTE_TINTS,
   TASK_CATEGORIES,
-  TODAY_ISO,
 } from '../data/seedData';
+import { getTodayIso } from '../utils/dateUtils';
 import { PAGE_ICON_OPTIONS, PageIcon } from './PageIcon';
 
 interface QuickAddModalProps {
@@ -40,7 +40,7 @@ interface QuickAddModalProps {
 export function QuickAddModal({
   isOpen,
   initialMode = 'task',
-  defaultDate = TODAY_ISO,
+  defaultDate,
   onClose,
   onCreateTask,
   onCreateNote,
@@ -48,7 +48,7 @@ export function QuickAddModal({
 }: QuickAddModalProps) {
   const [mode, setMode] = useState<'task' | 'note' | 'page'>(initialMode);
   const [taskTitle, setTaskTitle] = useState('');
-  const [dueDate, setDueDate] = useState(defaultDate);
+  const [dueDate, setDueDate] = useState(() => defaultDate || getTodayIso());
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [category, setCategory] = useState(TASK_CATEGORIES[0]);
   const [notes, setNotes] = useState('');
@@ -66,7 +66,7 @@ export function QuickAddModal({
   useEffect(() => {
     if (isOpen) {
       setMode(initialMode);
-      setDueDate(defaultDate);
+      setDueDate(defaultDate || getTodayIso());
     }
   }, [isOpen, initialMode, defaultDate]);
 

@@ -2,21 +2,23 @@ import { useMemo, useState } from 'react';
 import { CalendarPlus, ChevronRight } from 'lucide-react';
 import { JournalDay, TaskItem } from '../types/workspace';
 import { JOURNAL_TONES } from '../data/seedData';
-import { formatReadableDate, parseISODate } from '../utils/dateUtils';
+import { formatReadableDate, getTodayIso, parseISODate } from '../utils/dateUtils';
 
 interface JournalViewProps {
   journalDays: Record<string, JournalDay>;
   tasks: TaskItem[];
+  todayIso?: string;
   onOpenDate: (dateIso: string) => void;
 }
 
 export function JournalView({
   journalDays,
   tasks,
+  todayIso = getTodayIso(),
   onOpenDate,
 }: JournalViewProps) {
   const [toneFilter, setToneFilter] = useState<string>('All');
-  const [newEntryDate, setNewEntryDate] = useState<string>('2026-11-22');
+  const [newEntryDate, setNewEntryDate] = useState<string>(() => getTodayIso());
 
   const entries = useMemo(() => {
     return Object.values(journalDays)
@@ -124,7 +126,7 @@ export function JournalView({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <h2 className="text-base font-semibold text-[#37352F] dark:text-[#F0EFEA] truncate">
-                      {formatReadableDate(entry.date)}
+                      {formatReadableDate(entry.date, todayIso)}
                     </h2>
                     <ChevronRight
                       className="w-4 h-4 text-[#B4B3AF] group-hover:text-[#37352F] dark:group-hover:text-[#E6E5E1] transition-colors shrink-0"

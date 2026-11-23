@@ -1,4 +1,3 @@
-import { TODAY_ISO } from '../data/seedData';
 import { CalendarEvent } from '../types/workspace';
 
 export function parseISODate(iso: string): Date {
@@ -13,8 +12,15 @@ export function formatISODate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-export function formatReadableDate(iso: string): string {
-  if (iso === TODAY_ISO) {
+export function getTodayIso(): string {
+  return formatISODate(new Date());
+}
+
+export function formatReadableDate(
+  iso: string,
+  todayIso: string = getTodayIso()
+): string {
+  if (iso === todayIso) {
     const dt = parseISODate(iso);
     return `Today, ${dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
   }
@@ -26,13 +32,21 @@ export function formatReadableDate(iso: string): string {
   });
 }
 
-export function formatShortDate(iso: string): string {
-  if (iso === TODAY_ISO) return 'Today';
+export function formatShortDate(
+  iso: string,
+  todayIso: string = getTodayIso()
+): string {
+  if (iso === todayIso) return 'Today';
   const dt = parseISODate(iso);
   return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export function getSurroundingDates(centerIso: string, daysBefore = 3, daysAfter = 3): {
+export function getSurroundingDates(
+  centerIso: string,
+  daysBefore = 3,
+  daysAfter = 3,
+  todayIso: string = getTodayIso()
+): {
   iso: string;
   weekdayShort: string;
   dayNum: number;
@@ -48,7 +62,7 @@ export function getSurroundingDates(centerIso: string, daysBefore = 3, daysAfter
       iso,
       weekdayShort: d.toLocaleDateString('en-US', { weekday: 'short' }),
       dayNum: d.getDate(),
-      isToday: iso === TODAY_ISO,
+      isToday: iso === todayIso,
     });
   }
   return result;
@@ -83,7 +97,8 @@ export interface CalendarGridCell {
 export function getMonthGridDays(
   year: number,
   monthIndex: number,
-  weekStartsOnMonday = false
+  weekStartsOnMonday = false,
+  todayIso: string = getTodayIso()
 ): CalendarGridCell[] {
   const firstOfMonth = new Date(year, monthIndex, 1);
   const startWeekday = firstOfMonth.getDay(); // 0=Sun..6=Sat
@@ -103,7 +118,7 @@ export function getMonthGridDays(
       iso,
       dayNum: dt.getDate(),
       inCurrentMonth: dt.getMonth() === monthIndex && dt.getFullYear() === year,
-      isToday: iso === TODAY_ISO,
+      isToday: iso === todayIso,
     });
   }
   return cells;
@@ -120,7 +135,8 @@ export interface WeekDayInfo {
 
 export function getWeekDays(
   anchorIso: string,
-  weekStartsOnMonday = false
+  weekStartsOnMonday = false,
+  todayIso: string = getTodayIso()
 ): WeekDayInfo[] {
   const anchor = parseISODate(anchorIso);
   const dayOfWeek = anchor.getDay();
@@ -139,7 +155,7 @@ export function getWeekDays(
       weekdayLong: dt.toLocaleDateString('en-US', { weekday: 'long' }),
       monthShort: dt.toLocaleDateString('en-US', { month: 'short' }),
       dayNum: dt.getDate(),
-      isToday: iso === TODAY_ISO,
+      isToday: iso === todayIso,
     });
   }
   return days;

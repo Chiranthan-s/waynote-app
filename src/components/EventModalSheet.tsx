@@ -7,8 +7,8 @@ import {
   EventReminder,
   EventRepeat,
 } from '../types/workspace';
-import { EVENT_CATEGORIES, EVENT_COLORS, TODAY_ISO } from '../data/seedData';
-import { generateId } from '../utils/dateUtils';
+import { EVENT_CATEGORIES, EVENT_COLORS } from '../data/seedData';
+import { generateId, getTodayIso } from '../utils/dateUtils';
 
 interface EventModalSheetProps {
   isOpen: boolean;
@@ -37,13 +37,13 @@ const REMINDER_OPTIONS: { value: EventReminder; label: string }[] = [
 export function EventModalSheet({
   isOpen,
   editingEvent,
-  defaultDate = TODAY_ISO,
+  defaultDate,
   onClose,
   onSave,
   onDelete,
 }: EventModalSheetProps) {
   const [title, setTitle] = useState('');
-  const [date, setDate] = useState(defaultDate);
+  const [date, setDate] = useState(() => defaultDate || getTodayIso());
   const [allDay, setAllDay] = useState(false);
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
@@ -70,7 +70,7 @@ export function EventModalSheet({
       setDescription(editingEvent.description);
     } else {
       setTitle('');
-      setDate(defaultDate);
+      setDate(defaultDate || getTodayIso());
       setAllDay(false);
       setStartTime('09:00');
       setEndTime('10:00');

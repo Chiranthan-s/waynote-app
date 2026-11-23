@@ -85,12 +85,29 @@ export interface NoteItem {
   createdAt: string;
 }
 
+export type HabitCadence = 'daily' | 'weekdays';
+
+export interface HabitItem {
+  id: string;
+  title: string;
+  cadence: HabitCadence;
+  color: EventColor;
+  completedDates: string[]; // YYYY-MM-DD[]
+  createdAt: string;
+}
+
+export interface FocusDayLog {
+  sessions: number;
+  minutes: number;
+}
+
 export type ActiveTab =
   | 'today'
   | 'calendar'
   | 'tasks'
   | 'notes'
   | 'journal'
+  | 'focus'
   | 'pages';
 
 export type EventCategory =

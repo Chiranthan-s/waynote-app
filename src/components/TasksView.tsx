@@ -1,12 +1,15 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowUpDown, Plus, Trash2 } from 'lucide-react';
+import { ArrowRight, ArrowUpDown, Plus, Trash2 } from 'lucide-react';
 import { TaskItem, TaskPriority } from '../types/workspace';
-import { TASK_CATEGORIES, TODAY_ISO } from '../data/seedData';
+import { TASK_CATEGORIES } from '../data/seedData';
+import { getTodayIso } from '../utils/dateUtils';
 import { TaskRow } from './TaskRow';
 
 interface TasksViewProps {
   tasks: TaskItem[];
   sortBy: 'priority' | 'dueDate';
+  overdueCount: number;
+  onMoveOverdueToToday: () => void;
   onChangeSortBy: (sort: 'priority' | 'dueDate') => void;
   onToggleTask: (id: string) => void;
   onSelectTask: (task: TaskItem) => void;
@@ -29,6 +32,8 @@ const PRIORITY_WEIGHT: Record<TaskPriority, number> = {
 export function TasksView({
   tasks,
   sortBy,
+  overdueCount,
+  onMoveOverdueToToday,
   onChangeSortBy,
   onToggleTask,
   onSelectTask,
@@ -66,7 +71,7 @@ export function TasksView({
     if (!trimmed) return;
     onQuickAddTask({
       title: trimmed,
-      dueDate: TODAY_ISO,
+      dueDate: getTodayIso(),
       priority: 'medium',
       category: newCategory,
       notes: '',
@@ -146,6 +151,23 @@ export function TasksView({
           </button>
         </div>
       </form>
+
+      {/* Overdue Carry-Over Prompt */}
+      {overdueCount > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 rounded-2xl bg-[#FDF6EB] dark:bg-[#2D2417] border border-[#F3DFBD] dark:border-[#493A22]">
+          <span className="text-xs font-medium text-[#8C4D04] dark:text-[#FBBF24] tabular-nums">
+            {overdueCount} overdue task{overdueCount === 1 ? '' : 's'} waiting from earlier dates
+          </span>
+          <button
+            type="button"
+            onClick={onMoveOverdueToToday}
+            className="inline-flex items-center gap-1 px-3 min-h-[36px] rounded-lg bg-[#37352F] dark:bg-[#F0EFEA] text-white dark:text-[#191919] text-xs font-medium hover:opacity-90 transition-opacity whitespace-nowrap"
+          >
+            <span>Move to Today</span>
+            <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

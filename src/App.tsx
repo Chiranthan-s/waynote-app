@@ -15,6 +15,10 @@ import {
 import {
   ActiveTab,
   CalendarEvent,
+  EventColor,
+  FocusDayLog,
+  HabitCadence,
+  HabitItem,
   JournalDay,
   NoteItem,
   NoteTint,
@@ -25,13 +29,15 @@ import {
 } from './types/workspace';
 import {
   INITIAL_EVENTS,
+  INITIAL_FOCUS_LOGS,
+  INITIAL_HABITS,
   INITIAL_JOURNAL_DAYS,
   INITIAL_NOTES,
   INITIAL_PAGES,
   INITIAL_TASKS,
-  TODAY_ISO,
 } from './data/seedData';
-import { formatShortDate, generateId } from './utils/dateUtils';
+import { formatShortDate, generateId, getTodayIso } from './utils/dateUtils';
+import { isHabitScheduledOnDate } from './utils/habitUtils';
 import {
   downloadWaynoteBackup,
   parseAndValidateWaynoteBackup,
@@ -42,6 +48,11 @@ import { CalendarView } from './components/CalendarView';
 import { TasksView } from './components/TasksView';
 import { NotesView } from './components/NotesView';
 import { JournalView } from './components/JournalView';
+import {
+  FOCUS_PRESETS,
+  FocusHabitsView,
+  FocusPresetId,
+} from './components/FocusHabitsView';
 import { PagesView } from './components/PagesView';
 import { PageDetailView } from './components/PageDetailView';
 import { TaskInspectorSheet } from './components/TaskInspectorSheet';
@@ -56,9 +67,39 @@ import { PrintableNoteSheet } from './components/PrintableNoteSheet';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { PWAInstallButton } from './components/PWAInstallButton';
 
+function playFocusChime() {
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+    const playTone = (freq: number, start: number, dur: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.001, start);
+      gain.gain.exponentialRampToValueAtTime(0.14, start + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + dur + 0.02);
+    };
+    playTone(587.33, now, 0.35);
+    playTone(880, now + 0.16, 0.55);
+  } catch {
+    // ignore Web Audio restrictions
+  }
+}
+
 interface WorkspaceSettings {
   activeTab: ActiveTab;
   selectedDate: string;
+  lastTodayIso?: string;
   selectedPageId: string | null;
   selectedNoteId: string | null;
   notesLayoutMode: 'grid' | 'list';
@@ -73,6 +114,8 @@ const STORAGE_KEYS = {
   notes: 'waynote_notes_v1',
   journal: 'waynote_journal_v1',
   pages: 'waynote_pages_v1',
+  habits: 'waynote_habits_v1',
+  focusLogs: 'waynote_focus_v1',
   theme: 'waynote_theme_v1',
   settings: 'waynote_settings_v1',
   sampleCleared: 'waynote_sample_cleared_v1',
@@ -80,7 +123,8 @@ const STORAGE_KEYS = {
 
 const DEFAULT_SETTINGS: WorkspaceSettings = {
   activeTab: 'today',
-  selectedDate: TODAY_ISO,
+  selectedDate: getTodayIso(),
+  lastTodayIso: getTodayIso(),
   selectedPageId: null,
   selectedNoteId: INITIAL_NOTES[0]?.id || null,
   notesLayoutMode: 'grid',
@@ -129,6 +173,30 @@ export default function App() {
   const [pages, setPages] = useState<WorkspacePage[]>(() =>
     loadStored(STORAGE_KEYS.pages, isSampleDataCleared() ? [] : INITIAL_PAGES)
   );
+  const [habits, setHabits] = useState<HabitItem[]>(() =>
+    loadStored(STORAGE_KEYS.habits, isSampleDataCleared() ? [] : INITIAL_HABITS)
+  );
+  const [focusLogs, setFocusLogs] = useState<Record<string, FocusDayLog>>(() =>
+    loadStored(
+      STORAGE_KEYS.focusLogs,
+      isSampleDataCleared() ? {} : INITIAL_FOCUS_LOGS
+    )
+  );
+  const [timerState, setTimerState] = useState<{
+    presetId: FocusPresetId;
+    secondsLeft: number;
+    totalSeconds: number;
+    isRunning: boolean;
+    linkedTaskId: string;
+    soundEnabled: boolean;
+  }>({
+    presetId: 'focus25',
+    secondsLeft: 25 * 60,
+    totalSeconds: 25 * 60,
+    isRunning: false,
+    linkedTaskId: '',
+    soundEnabled: true,
+  });
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEYS.theme);
@@ -142,12 +210,21 @@ export default function App() {
     }
   });
 
+  const [todayIso, setTodayIso] = useState<string>(() => getTodayIso());
+
   const [settings, setSettings] = useState<WorkspaceSettings>(() => {
+    const liveToday = getTodayIso();
     const saved = loadStored<Partial<WorkspaceSettings>>(
       STORAGE_KEYS.settings,
       {}
     );
-    return { ...DEFAULT_SETTINGS, ...saved };
+    const isNewDay = !saved.lastTodayIso || saved.lastTodayIso !== liveToday;
+    return {
+      ...DEFAULT_SETTINGS,
+      ...saved,
+      selectedDate: isNewDay ? liveToday : saved.selectedDate || liveToday,
+      lastTodayIso: liveToday,
+    };
   });
 
   const activeTab = settings.activeTab;
@@ -166,7 +243,7 @@ export default function App() {
   const setActiveTab = (tab: ActiveTab) =>
     setSettings((s) => ({ ...s, activeTab: tab }));
   const setSelectedDate = (date: string) =>
-    setSettings((s) => ({ ...s, selectedDate: date }));
+    setSettings((s) => ({ ...s, selectedDate: date, lastTodayIso: todayIso }));
   const setSelectedPageId = (pageId: string | null) =>
     setSettings((s) => ({ ...s, selectedPageId: pageId }));
   const setSelectedNoteId = (noteId: string | null) =>
@@ -177,7 +254,7 @@ export default function App() {
     open: boolean;
     editingEvent: CalendarEvent | null;
     defaultDate: string;
-  }>({ open: false, editingEvent: null, defaultDate: TODAY_ISO });
+  }>(() => ({ open: false, editingEvent: null, defaultDate: getTodayIso() }));
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -221,6 +298,67 @@ export default function App() {
     }
   }, [settings]);
 
+  // Automatically advance live date across local midnight and when returning to the app
+  useEffect(() => {
+    let midnightTimer: number | undefined;
+
+    const syncToday = () => {
+      const liveToday = getTodayIso();
+      setTodayIso((prevToday) => {
+        if (prevToday === liveToday) return prevToday;
+        setSettings((s) => ({
+          ...s,
+          lastTodayIso: liveToday,
+          selectedDate:
+            s.selectedDate === prevToday ? liveToday : s.selectedDate,
+        }));
+        return liveToday;
+      });
+    };
+
+    const scheduleMidnightCheck = () => {
+      if (midnightTimer !== undefined) {
+        window.clearTimeout(midnightTimer);
+      }
+      const now = new Date();
+      const nextMidnight = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 1,
+        0,
+        0,
+        0,
+        150
+      );
+      const msUntilMidnight = Math.max(1000, nextMidnight.getTime() - now.getTime());
+      midnightTimer = window.setTimeout(() => {
+        syncToday();
+        scheduleMidnightCheck();
+      }, msUntilMidnight);
+    };
+
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'hidden') return;
+      syncToday();
+      scheduleMidnightCheck();
+    };
+
+    syncToday();
+    scheduleMidnightCheck();
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    window.addEventListener('pageshow', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    return () => {
+      if (midnightTimer !== undefined) {
+        window.clearTimeout(midnightTimer);
+      }
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      window.removeEventListener('pageshow', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+    };
+  }, []);
+
   // Sync /privacy route with browser history
   useEffect(() => {
     const handlePopState = () => {
@@ -261,6 +399,8 @@ export default function App() {
       localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify([]));
       localStorage.setItem(STORAGE_KEYS.journal, JSON.stringify({}));
       localStorage.setItem(STORAGE_KEYS.pages, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.habits, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.focusLogs, JSON.stringify({}));
     } catch {
       // ignore storage quota errors
     }
@@ -270,6 +410,8 @@ export default function App() {
     setNotes([]);
     setJournalDays({});
     setPages([]);
+    setHabits([]);
+    setFocusLogs({});
     setInspectedTaskId(null);
     setPrintableNote(null);
     setUndoToast(null);
@@ -289,6 +431,8 @@ export default function App() {
       notes: loadStored(STORAGE_KEYS.notes, notes),
       pages: loadStored(STORAGE_KEYS.pages, pages),
       journalDays: loadStored(STORAGE_KEYS.journal, journalDays),
+      habits: loadStored(STORAGE_KEYS.habits, habits),
+      focusLogs: loadStored(STORAGE_KEYS.focusLogs, focusLogs),
     });
   };
 
@@ -308,6 +452,8 @@ export default function App() {
     }
 
     const restored = result.data;
+    const restoredHabits = restored.habits ?? [];
+    const restoredFocusLogs = restored.focusLogs ?? {};
     try {
       localStorage.setItem(STORAGE_KEYS.sampleCleared, 'true');
       localStorage.setItem(STORAGE_KEYS.tasks, JSON.stringify(restored.tasks));
@@ -321,6 +467,11 @@ export default function App() {
         STORAGE_KEYS.journal,
         JSON.stringify(restored.journalDays)
       );
+      localStorage.setItem(STORAGE_KEYS.habits, JSON.stringify(restoredHabits));
+      localStorage.setItem(
+        STORAGE_KEYS.focusLogs,
+        JSON.stringify(restoredFocusLogs)
+      );
     } catch {
       return 'Failed to save restored backup to localStorage.';
     }
@@ -330,6 +481,8 @@ export default function App() {
     setNotes(restored.notes);
     setPages(restored.pages);
     setJournalDays(restored.journalDays);
+    setHabits(restoredHabits);
+    setFocusLogs(restoredFocusLogs);
     setInspectedTaskId(null);
     setPrintableNote(null);
     setSettings((s) => ({
@@ -385,6 +538,91 @@ export default function App() {
     }
   }, [events]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.habits, JSON.stringify(habits));
+    } catch {
+      // ignore
+    }
+  }, [habits]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.focusLogs, JSON.stringify(focusLogs));
+    } catch {
+      // ignore
+    }
+  }, [focusLogs]);
+
+  // Live background Focus Timer ticker + document title sync
+  useEffect(() => {
+    if (!timerState.isRunning) {
+      document.title = 'Waynote — Daily Journal & Task Workspace';
+      return;
+    }
+
+    const mins = String(Math.floor(timerState.secondsLeft / 60)).padStart(2, '0');
+    const secs = String(timerState.secondsLeft % 60).padStart(2, '0');
+    document.title = `${mins}:${secs} · Waynote`;
+  }, [timerState.isRunning, timerState.secondsLeft]);
+
+  useEffect(() => {
+    if (!timerState.isRunning) return;
+
+    const id = window.setInterval(() => {
+      setTimerState((prev) => {
+        if (!prev.isRunning) return prev;
+        if (prev.secondsLeft <= 1) {
+          return { ...prev, isRunning: false, secondsLeft: 0 };
+        }
+        return { ...prev, secondsLeft: prev.secondsLeft - 1 };
+      });
+    }, 1000);
+
+    return () => window.clearInterval(id);
+  }, [timerState.isRunning]);
+
+  // Handle focus timer completion cleanly outside state updaters
+  useEffect(() => {
+    if (timerState.isRunning || timerState.secondsLeft !== 0) return;
+
+    const preset =
+      FOCUS_PRESETS.find((p) => p.id === timerState.presetId) ||
+      FOCUS_PRESETS[0];
+
+    if (timerState.soundEnabled) {
+      playFocusChime();
+    }
+
+    if (preset.isFocus) {
+      const liveToday = getTodayIso();
+      setFocusLogs((logs) => {
+        const cur = logs[liveToday] || { sessions: 0, minutes: 0 };
+        return {
+          ...logs,
+          [liveToday]: {
+            sessions: cur.sessions + 1,
+            minutes: cur.minutes + preset.minutes,
+          },
+        };
+      });
+      setUndoToast({
+        label: `Focus session complete! Logged ${preset.minutes}m for today.`,
+      });
+    } else {
+      setUndoToast({ label: 'Break finished — ready when you are.' });
+    }
+
+    setTimerState((prev) =>
+      prev.secondsLeft === 0 ? { ...prev, secondsLeft: prev.totalSeconds } : prev
+    );
+  }, [
+    timerState.isRunning,
+    timerState.secondsLeft,
+    timerState.presetId,
+    timerState.soundEnabled,
+  ]);
+
   // Cmd/Ctrl+K search shortcut
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -415,6 +653,16 @@ export default function App() {
   const inspectedTask = tasks.find((t) => t.id === inspectedTaskId) || null;
   const activeTaskCount = tasks.filter((t) => !t.completed).length;
   const activeNoteCount = notes.filter((n) => !n.archived).length;
+  const overdueTasksCount = tasks.filter(
+    (t) => !t.completed && t.dueDate < todayIso
+  ).length;
+  const scheduledHabitsToday = habits.filter((h) =>
+    isHabitScheduledOnDate(h, todayIso)
+  );
+  const habitsDoneToday = scheduledHabitsToday.filter((h) =>
+    h.completedDates.includes(todayIso)
+  ).length;
+  const focusMinutesToday = focusLogs[todayIso]?.minutes || 0;
 
   const handleUpdateJournalDay = (date: string, patch: Partial<JournalDay>) => {
     setJournalDays((prev) => {
@@ -489,6 +737,83 @@ export default function App() {
     });
   };
 
+  const handleMoveOverdueToToday = () => {
+    const snapshot = tasks;
+    const liveToday = getTodayIso();
+    const count = tasks.filter(
+      (t) => !t.completed && t.dueDate < liveToday
+    ).length;
+    if (count === 0) return;
+    setTasks((prev) =>
+      prev.map((t) =>
+        !t.completed && t.dueDate < liveToday ? { ...t, dueDate: liveToday } : t
+      )
+    );
+    setUndoToast({
+      label: `Moved ${count} unfinished task${count > 1 ? 's' : ''} to Today`,
+      restore: () => {
+        setTasks(snapshot);
+        setUndoToast(null);
+      },
+    });
+  };
+
+  const handleToggleHabitDate = (habitId: string, dateIso: string) => {
+    setHabits((prev) =>
+      prev.map((h) => {
+        if (h.id !== habitId) return h;
+        const exists = h.completedDates.includes(dateIso);
+        return {
+          ...h,
+          completedDates: exists
+            ? h.completedDates.filter((d) => d !== dateIso)
+            : [...h.completedDates, dateIso],
+        };
+      })
+    );
+  };
+
+  const handleCreateHabit = (payload: {
+    title: string;
+    cadence: HabitCadence;
+    color: EventColor;
+  }) => {
+    const created: HabitItem = {
+      id: generateId('hab'),
+      title: payload.title,
+      cadence: payload.cadence,
+      color: payload.color,
+      completedDates: [],
+      createdAt: new Date().toISOString(),
+    };
+    setHabits((prev) => [created, ...prev]);
+  };
+
+  const handleDeleteHabit = (habitId: string) => {
+    const removed = habits.find((h) => h.id === habitId);
+    if (!removed) return;
+    setHabits((prev) => prev.filter((h) => h.id !== habitId));
+    setUndoToast({
+      label: `Deleted habit "${removed.title}"`,
+      restore: () => {
+        setHabits((prev) => [removed, ...prev]);
+        setUndoToast(null);
+      },
+    });
+  };
+
+  const handleSelectFocusPreset = (presetId: FocusPresetId) => {
+    const preset =
+      FOCUS_PRESETS.find((p) => p.id === presetId) || FOCUS_PRESETS[0];
+    setTimerState((prev) => ({
+      ...prev,
+      presetId,
+      isRunning: false,
+      totalSeconds: preset.minutes * 60,
+      secondsLeft: preset.minutes * 60,
+    }));
+  };
+
   const handleCreatePage = (payload: {
     title: string;
     icon: PageIconName;
@@ -501,7 +826,7 @@ export default function App() {
       icon: payload.icon,
       coverUrl: payload.coverUrl,
       fontStyle: 'sans',
-      updatedAt: TODAY_ISO,
+      updatedAt: getTodayIso(),
       summary: payload.summary,
       blocks: [
         {
@@ -535,6 +860,18 @@ export default function App() {
   };
 
   const handleSelectTab = (tab: ActiveTab) => {
+    const liveToday = getTodayIso();
+    setTodayIso(liveToday);
+    if (tab === 'today' && activeTab === 'today') {
+      setSettings((s) => ({
+        ...s,
+        activeTab: 'today',
+        selectedPageId: null,
+        selectedDate: liveToday,
+        lastTodayIso: liveToday,
+      }));
+      return;
+    }
     setSelectedPageId(null);
     setActiveTab(tab);
   };
@@ -629,7 +966,7 @@ export default function App() {
   const currentTitle = selectedPage
     ? selectedPage.title || 'Untitled'
     : activeTab === 'today'
-      ? formatShortDate(selectedDate)
+      ? formatShortDate(selectedDate, todayIso)
       : activeTab === 'calendar'
         ? 'Calendar'
         : activeTab === 'tasks'
@@ -638,7 +975,9 @@ export default function App() {
             ? 'Notes'
             : activeTab === 'journal'
               ? 'Journey Log'
-              : 'Pages';
+              : activeTab === 'focus'
+                ? 'Focus & Habits'
+                : 'Pages';
 
   const mobileTabs: {
     id: ActiveTab;
@@ -682,6 +1021,9 @@ export default function App() {
           pages={pages}
           activeTaskCount={activeTaskCount}
           activeNoteCount={activeNoteCount}
+          habitsDoneToday={habitsDoneToday}
+          habitsScheduledToday={scheduledHabitsToday.length}
+          focusTimerRunning={timerState.isRunning}
           darkMode={darkMode}
           mobileOpen={mobileMenuOpen}
           onCloseMobile={() => setMobileMenuOpen(false)}
@@ -770,7 +1112,7 @@ export default function App() {
           <div className="flex items-center gap-2 text-xs text-[#787774] dark:text-[#9B9A97] min-w-0">
             <button
               type="button"
-              onClick={() => handleSelectTab('today')}
+              onClick={() => handleOpenJournalDate(todayIso)}
               className="hover:text-[#37352F] dark:hover:text-[#E6E5E1] transition-colors whitespace-nowrap shrink-0"
             >
               Waynote
@@ -869,10 +1211,17 @@ export default function App() {
           ) : activeTab === 'today' ? (
             <TodayView
               selectedDate={selectedDate}
+              todayIso={todayIso}
               onSelectDate={setSelectedDate}
               events={events}
               tasks={tasks}
+              habits={habits}
               journalDay={activeJournalDay}
+              overdueCount={overdueTasksCount}
+              focusMinutesToday={focusMinutesToday}
+              onMoveOverdueToToday={handleMoveOverdueToToday}
+              onToggleHabitDate={handleToggleHabitDate}
+              onOpenFocusView={() => handleSelectTab('focus')}
               onUpdateJournalDay={handleUpdateJournalDay}
               onSelectEvent={(evt) =>
                 setEventSheetState({
@@ -896,6 +1245,7 @@ export default function App() {
           ) : activeTab === 'calendar' ? (
             <CalendarView
               selectedDate={selectedDate}
+              todayIso={todayIso}
               onSelectDate={setSelectedDate}
               viewMode={settings.calendarViewMode}
               onChangeViewMode={(mode) =>
@@ -934,6 +1284,8 @@ export default function App() {
             <TasksView
               tasks={tasks}
               sortBy={settings.tasksSortBy}
+              overdueCount={overdueTasksCount}
+              onMoveOverdueToToday={handleMoveOverdueToToday}
               onChangeSortBy={(sort) =>
                 setSettings((s) => ({ ...s, tasksSortBy: sort }))
               }
@@ -970,7 +1322,41 @@ export default function App() {
             <JournalView
               journalDays={journalDays}
               tasks={tasks}
+              todayIso={todayIso}
               onOpenDate={handleOpenJournalDate}
+            />
+          ) : activeTab === 'focus' ? (
+            <FocusHabitsView
+              todayIso={todayIso}
+              habits={habits}
+              tasks={tasks}
+              journalDays={journalDays}
+              focusLogs={focusLogs}
+              onToggleHabitDate={handleToggleHabitDate}
+              onCreateHabit={handleCreateHabit}
+              onDeleteHabit={handleDeleteHabit}
+              onToggleTask={handleToggleTask}
+              timerState={timerState}
+              onSelectPreset={handleSelectFocusPreset}
+              onToggleTimerRun={() =>
+                setTimerState((prev) => ({ ...prev, isRunning: !prev.isRunning }))
+              }
+              onResetTimer={() =>
+                setTimerState((prev) => ({
+                  ...prev,
+                  isRunning: false,
+                  secondsLeft: prev.totalSeconds,
+                }))
+              }
+              onChangeLinkedTask={(taskId) =>
+                setTimerState((prev) => ({ ...prev, linkedTaskId: taskId }))
+              }
+              onToggleSound={() =>
+                setTimerState((prev) => ({
+                  ...prev,
+                  soundEnabled: !prev.soundEnabled,
+                }))
+              }
             />
           ) : (
             <PagesView

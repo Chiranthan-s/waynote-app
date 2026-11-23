@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { ArrowLeft, Image as ImageIcon, Trash2, Type } from 'lucide-react';
 import { PageIconName, WorkspacePage } from '../types/workspace';
-import { COVER_PRESETS, TODAY_ISO } from '../data/seedData';
-import { formatShortDate } from '../utils/dateUtils';
+import { COVER_PRESETS } from '../data/seedData';
+import { formatShortDate, getTodayIso } from '../utils/dateUtils';
 import { BlockEditor } from './BlockEditor';
 import { CoverImage } from './CoverImage';
 import { PAGE_ICON_OPTIONS, PageIcon } from './PageIcon';
@@ -27,7 +27,7 @@ export function PageDetailView({
     onUpdatePage({
       ...page,
       ...patch,
-      updatedAt: TODAY_ISO,
+      updatedAt: getTodayIso(),
     });
   };
 

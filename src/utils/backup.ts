@@ -1,5 +1,7 @@
 import {
   CalendarEvent,
+  FocusDayLog,
+  HabitItem,
   JournalDay,
   NoteItem,
   TaskItem,
@@ -12,6 +14,8 @@ export interface WaynoteBackupData {
   notes: NoteItem[];
   pages: WorkspacePage[];
   journalDays: Record<string, JournalDay>;
+  habits?: HabitItem[];
+  focusLogs?: Record<string, FocusDayLog>;
 }
 
 export interface WaynoteBackup {
@@ -92,7 +96,8 @@ export function parseAndValidateWaynoteBackup(
     };
   }
 
-  const { tasks, events, notes, pages, journalDays } = parsed.data;
+  const { tasks, events, notes, pages, journalDays, habits, focusLogs } =
+    parsed.data;
 
   if (
     !hasStringIdArray(tasks) ||
@@ -116,6 +121,12 @@ export function parseAndValidateWaynoteBackup(
       notes: notes as unknown as NoteItem[],
       pages: pages as unknown as WorkspacePage[],
       journalDays,
+      habits: hasStringIdArray(habits)
+        ? (habits as unknown as HabitItem[])
+        : undefined,
+      focusLogs: isPlainObject(focusLogs)
+        ? (focusLogs as unknown as Record<string, FocusDayLog>)
+        : undefined,
     },
   };
 }
